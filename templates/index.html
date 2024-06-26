@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Webhook Viewer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .event { margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>GitHub Repository Activity</h1>
+    <div id="events"></div>
+
+    <script>
+        // Function to fetch and display events
+        function fetchEvents() {
+            fetch('/events')
+                .then(response => response.json())
+                .then(data => {
+                    const eventsDiv = document.getElementById('events');
+                    eventsDiv.innerHTML = '';
+                    data.forEach(event => {
+                        let eventText = '';
+                        if (event.event === 'push') {
+                            eventText = `${event.author} pushed to ${event.to_branch} on ${new Date(event.timestamp).toUTCString()}`;
+                        } else if (event.event === 'pull_request') {
+                            eventText = `${event.author} submitted a pull request from ${event.from_branch} to ${event.to_branch} on ${new Date(event.timestamp).toUTCString()}`;
+                        } // Add merge handling as needed
+                        const eventDiv = document.createElement('div');
+                        eventDiv.className = 'event';
+                        eventDiv.textContent = eventText;
+                        eventsDiv.appendChild(eventDiv);
+                    });
+                })
+                .catch(error => console.error('Error fetching events:', error));
+        }
+
+        // Fetch events every 15 seconds
+        setInterval(fetchEvents, 15000);
+        // Initial fetch
+        fetchEvents();
+    </script>
+</body>
+</html>
