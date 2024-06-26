@@ -19,14 +19,14 @@ def api_root():
 def api_gh_message():
     if request.headers.get('Content-Type') == 'application/json':
         data = request.get_json()
-        # Example structure to be stored, you need to extract actual details from the payload
         event_type = request.headers.get('X-GitHub-Event')
+        
         if event_type == "push":
             # Extract relevant push details
             info = {
                 "author": data['pusher']['name'],
                 "to_branch": data['ref'].split('/')[-1],
-                "timestamp": datetime.datetime.utcnow(),
+                "timestamp": datetime.datetime.utcnow(),  # Use current UTC time for consistency
                 "event": "push"
             }
         elif event_type == "pull_request":
@@ -38,15 +38,35 @@ def api_gh_message():
                 "timestamp": data['pull_request']['created_at'],
                 "event": "pull_request"
             }
-        # Add more cases if needed
         else:
-            info = {"error": "Unhandled event"}
+            # Log unhandled events (if any)
+            return jsonify({"error": f"Unhandled event type: {event_type}"}), 400
 
-        # Store in MongoDB
+        # Store the event details in MongoDB
         webhook_collection.insert_one(info)
         return jsonify(info), 201
-    else:
-        return jsonify({"error": "Unsupported Media Type"}), 415
+
+    return jsonify({"error": "Unsupported Media Type"}), 415
+
+@app.route('/events', methods=['GET'])
+def get_events():
+    events = webhook_collection.find().sort("timestamp", -1)  # Sort by timestamp in descending order
+    events_list = []
+    
+    for event in events:
+        # Format the timestamp for display
+        formatted_timestamp = event.get("timestamp").strftime('%d %B %Y - %I:%M %p UTC')
+        
+        # Append formatted event details
+        events_list.append({
+            "author": event.get("author"),
+            "to_branch": event.get("to_branch"),
+            "from_branch": event.get("from_branch", ""),  # Default to an empty string if not available
+            "timestamp": formatted_timestamp,
+            "event": event.get("event")
+        })
+
+    return jsonify(events_list)
 
 if __name__ == '__main__':
     app.run(debug=True)
